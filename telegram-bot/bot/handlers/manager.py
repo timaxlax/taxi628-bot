@@ -10,15 +10,15 @@ notification_manager = NotificationManager()
 
 async def check_driver_status():
     while True:
-        await asyncio.sleep(60)  # Ждем 1 минуту перед проверкой
+        await asyncio.sleep(10)  # Ждем 1 минуту перед проверкой
         orders_sheet = google_sheets_client.get_orders_sheet()
         orders = orders_sheet.get_all_records()
 
         for order in orders:
-            if 'тип авто' in order and order['тип авто']:
+            if 'car_type' in order and order['car_type']:
                 driver_chat_id = order.get('user_id')
                 if driver_chat_id:
-                    await notification_manager.send_registration_complete(driver_chat_id, order['тип авто'])
+                    await notification_manager.send_registration_complete(driver_chat_id, order['car_type'])
                 orders_sheet.update_cell(order['номер заказа'], 'user_id', '')  # Очищаем поле user_id
 
 @dp.message_handler(commands=['assign_type'])
