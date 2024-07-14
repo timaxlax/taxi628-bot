@@ -17,10 +17,25 @@ class Registration(StatesGroup):
 google_sheets_client = GoogleSheetsClient()
 notification_manager = NotificationManager()
 
+
+
 @dp.message_handler(commands=['start'])
 async def start_command(message: types.Message):
-    await message.reply("Добро пожаловать! Пожалуйста, введите ваше ФИО:")
-    await Registration.full_name.set()
+    user_id = message.from_user.id
+    driver_info = google_sheets_client.get_driver_info(user_id)
+    if driver_info[0] is not None:
+        await message.reply(f"Вы уже зарегистрированы. Вот ваши данные:\n"
+                            f"ФИО: {driver_info[0]}\n"
+                            f"Номер телефона: {driver_info[1]}\n"
+                            f"Марка автомобиля: {driver_info[2]}\n"
+                            f"Цвет автомобиля: {driver_info[3]}\n"
+                            f"Гос. номер автомобиля: {driver_info[4]}\n"
+                            f"Тип кузова: {driver_info[5]}\n"
+                            f"Год выпуска: {driver_info[6]}\n"
+                            f"Тип авто: {driver_info[7]}")
+    else:
+        await message.reply("Добро пожаловать! Пожалуйста, введите ваше ФИО:")
+        await Registration.full_name.set()
 
 @dp.message_handler(state=Registration.full_name)
 async def get_full_name(message: types.Message, state: FSMContext):
@@ -65,10 +80,10 @@ async def get_body_type(message: types.Message, state: FSMContext):
     await Registration.next()
 
 @dp.message_handler(state=Registration.year)
-async def get_year(message: types.Message, state: FSMContext):
+async def getyear(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['year'] = message.text
-        driver_data = [
+        driverdata = [
             data['full_name'],
             data['phone_number'],
             data['car_brand'],
@@ -78,6 +93,6 @@ async def get_year(message: types.Message, state: FSMContext):
             data['year'],
             message.from_user.id,
         ]
-        google_sheets_client.append_driver(driver_data)
+        google_sheets_client.append_driver(driverdata)
     await message.reply("Ваша заявка на регистрацию рассматривается менеджером. Пожалуйста, подождите.")
     await state.finish()
