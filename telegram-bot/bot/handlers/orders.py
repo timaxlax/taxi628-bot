@@ -14,8 +14,15 @@ class OrderConfirmation(StatesGroup):
     order_id = State()
     order_info = State()
 
+class OrderStates(StatesGroup):
+    order_action = State()
 
 
+async def show_cancel_button(message: types.Message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    button_cancel = KeyboardButton("Отмена")
+    markup.add(button_cancel)
+    await message.answer("Для отмены действия нажмите 'Отмена'.", reply_markup=markup)
 
 
 @dp.message_handler(commands=['orders'])
@@ -43,8 +50,12 @@ async def list_orders(message: types.Message, state: FSMContext):
             msg = await message.reply(order_info, reply_markup=markup)
             messages_to_delete.append(msg.message_id)
         await state.update_data(messages_to_delete=messages_to_delete)
+        await show_cancel_button(message)
+        await OrderStates.order_action.set()
     else:
         await message.reply("Нет доступных заказов для вашего типа авто.")
+
+
 
 @dp.callback_query_handler(lambda c: c.data and c.data.startswith('select_order_'))
 async def process_select_order(callback_query: types.CallbackQuery, state: FSMContext):
@@ -96,8 +107,13 @@ async def list_user_orders(message: types.Message):
             button = InlineKeyboardButton("Завершить заказ", callback_data=f"complete_order_{order['ID']}")
             markup.add(button)
             await message.reply(order_info, reply_markup=markup)
+        await show_cancel_button(message)
+        await OrderStates.order_action.set()
     else:
         await message.reply("У вас нет взятых заказов.")
+
+
+    
 
 @dp.callback_query_handler(lambda c: c.data and c.data.startswith('complete_order_'))
 async def process_complete_order(callback_query: types.CallbackQuery):
@@ -161,6 +177,16 @@ async def process_confirm_order(callback_query: types.CallbackQuery, state: FSMC
         await dp.bot.send_message(callback_query.from_user.id, "Произошла ошибка при обновлении заказа. Пожалуйста, попробуйте снова.")
     
     await state.finish()
+
+
+
+@dp.callback_query_handler(lambda c: c.data == 'cancel_order', state=OrderStates.order_action)
+async def process_cancel_order(callback_query: types.CallbackQuery, state: FSMContext):
+    await callback_query.message.delete()
+    await callback_query.answer("Выберите заказ заново.")
+    await show_main_menu(callback_query.message)
+    await state.finish()
+
 
 async def get_order_info(order_id):
     order = google_sheets_client.get_order_by_id(order_id)
